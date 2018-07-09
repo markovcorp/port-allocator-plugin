@@ -28,9 +28,12 @@ public class PortAllocationManagerTest extends TestCase {
 	 */
 	public void testAllocate() throws Exception {
 		final Computer computer = Mockito.mock(Computer.class);
-		final AbstractBuild build = Mockito.mock(AbstractBuild.class);
+		String testAllocateBuildId = "1000";
+		final AbstractBuild<?, ?> build = Mockito.mock(AbstractBuild.class);
 		final PortAllocationManager manager = PortAllocationManager.getManager(computer);
 
+		Mockito.when(build.getId()).thenReturn(testAllocateBuildId);
+		
 		final TestMonitor monitor = new TestMonitor();
 
 		final int testPort1 = 55;
@@ -88,13 +91,15 @@ public class PortAllocationManagerTest extends TestCase {
 		runner.start();
 
 		synchronized (monitor) {
-			for (int i = 0; i < 10 && !monitor.ready; i++) {
+			// give a little time so runner thread can reach to set monitor ready state
+			// then runner will reallocate ports and wait there as we need release the port1 in master thread
+			for (int i = 0; i < 30 && !monitor.ready; i++) {
 				monitor.wait(1000);
 			}
 			assertTrue("allocate thread failed to prepare", monitor.ready);
 			assertFalse("allocate thread completed before port was freed", monitor.completed);
 			manager.free(testPort1);
-			for (int i = 0; i < 10 && !monitor.completed; i++) {
+			for (int i = 0; i < 30 && !monitor.completed; i++) {
 				monitor.wait(1000);
 			}
 			assertTrue("allocate thread failed to complete", monitor.completed);
@@ -116,7 +121,10 @@ public class PortAllocationManagerTest extends TestCase {
 		final VirtualChannel channel = Mockito.mock(VirtualChannel.class);
 		final Computer computer = Mockito.mock(Computer.class);
 		final AbstractBuild build = Mockito.mock(AbstractBuild.class);
-
+		
+		String testAllocateRandomBuildId = "1001";
+		Mockito.when(build.getId()).thenReturn(testAllocateRandomBuildId);
+		
 		final int mockPort = 42;
 		Mockito.when(computer.getChannel()).thenReturn(channel);
 		Mockito.when(channel.call(Mockito.isNotNull(Callable.class))).thenReturn(mockPort);
